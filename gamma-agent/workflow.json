@@ -1,0 +1,150 @@
+{
+  "name": "Gamma Agent — Async AI Presentation Generator",
+  "nodes": [
+    {
+      "name": "Telegram Trigger",
+      "type": "n8n-nodes-base.telegramTrigger",
+      "parameters": {
+        "updates": ["message"]
+      },
+      "position": [240, 300]
+    },
+    {
+      "name": "Extract User Data",
+      "type": "n8n-nodes-base.set",
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "chat_id",
+              "value": "={{$json.message.chat.id}}"
+            },
+            {
+              "name": "user_input",
+              "value": "={{$json.message.text}}"
+            }
+          ]
+        }
+      },
+      "position": [460, 300]
+    },
+    {
+      "name": "Generate with Gamma API",
+      "type": "n8n-nodes-base.httpRequest",
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.gamma.app/v1/generate",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{$env.GAMMA_API_KEY}}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "prompt",
+              "value": "={{$json.user_input}}"
+            }
+          ]
+        }
+      },
+      "position": [680, 300]
+    },
+    {
+      "name": "Save State for HITL",
+      "type": "n8n-nodes-base.code",
+      "parameters": {
+        "jsCode": "const staticData = $getWorkflowStaticData('global');\nstaticData.pendingApproval = {\n  chat_id: $json.chat_id,\n  presentation_url: $json.url,\n  created_at: new Date().toISOString()\n};\nreturn $input.all();"
+      },
+      "position": [900, 300]
+    },
+    {
+      "name": "Send for Approval",
+      "type": "n8n-nodes-base.telegram",
+      "parameters": {
+        "chatId": "={{$json.chat_id}}",
+        "text": "={{`Your presentation is ready: ${$json.url}\\n\\nReply /approve or /reject`}}"
+      },
+      "position": [1120, 300]
+    },
+    {
+      "name": "Wait for Approval",
+      "type": "n8n-nodes-base.wait",
+      "parameters": {
+        "resume": "webhook"
+      },
+      "position": [1340, 300]
+    },
+    {
+      "name": "Check Decision",
+      "type": "n8n-nodes-base.switch",
+      "parameters": {
+        "dataPropertyName": "decision",
+        "rules": {
+          "rules": [
+            {"value": "approve"},
+            {"value": "reject"}
+          ]
+        }
+      },
+      "position": [1560, 300]
+    },
+    {
+      "name": "Schedule Email Delivery",
+      "type": "n8n-nodes-base.wait",
+      "parameters": {
+        "resume": "specificTime",
+        "dateTime": "={{$json.optimal_send_time}}"
+      },
+      "position": [1780, 200]
+    },
+    {
+      "name": "Error Trigger",
+      "type": "n8n-nodes-base.errorTrigger",
+      "position": [240, 500]
+    },
+    {
+      "name": "Notify on Error",
+      "type": "n8n-nodes-base.telegram",
+      "parameters": {
+        "chatId": "={{$env.DEV_CHAT_ID}}",
+        "text": "=Pipeline error: {{$json.error.message}}"
+      },
+      "position": [460, 500]
+    }
+  ],
+  "connections": {
+    "Telegram Trigger": {
+      "main": [[{"node": "Extract User Data", "type": "main", "index": 0}]]
+    },
+    "Extract User Data": {
+      "main": [[{"node": "Generate with Gamma API", "type": "main", "index": 0}]]
+    },
+    "Generate with Gamma API": {
+      "main": [[{"node": "Save State for HITL", "type": "main", "index": 0}]]
+    },
+    "Save State for HITL": {
+      "main": [[{"node": "Send for Approval", "type": "main", "index": 0}]]
+    },
+    "Send for Approval": {
+      "main": [[{"node": "Wait for Approval", "type": "main", "index": 0}]]
+    },
+    "Wait for Approval": {
+      "main": [[{"node": "Check Decision", "type": "main", "index": 0}]]
+    },
+    "Check Decision": {
+      "main": [
+        [{"node": "Schedule Email Delivery", "type": "main", "index": 0}],
+        []
+      ]
+    },
+    "Error Trigger": {
+      "main": [[{"node": "Notify on Error", "type": "main", "index": 0}]]
+    }
+  }
+}
