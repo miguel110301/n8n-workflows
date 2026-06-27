@@ -64,7 +64,10 @@
       "type": "n8n-nodes-base.httpRequest",
       "parameters": {
         "method": "POST",
-        "url": "=https://graph.facebook.com/v18.0/{{$env.WHATSAPP_PHONE_ID}}/messages"
+        "url": "=https://graph.facebook.com/v18.0/{{$env.WHATSAPP_PHONE_ID}}/messages",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"messaging_product\": \"whatsapp\",\n  \"to\": \"{{$json.phone}}\",\n  \"type\": \"text\",\n  \"text\": {\n    \"body\": \"Receipt validated and stored. Reference: {{$json.document_id}}\"\n  }\n}"
       },
       "position": [1120, 200]
     },
@@ -78,9 +81,32 @@
       "type": "n8n-nodes-base.httpRequest",
       "parameters": {
         "method": "POST",
-        "url": "=https://graph.facebook.com/v18.0/{{$env.WHATSAPP_PHONE_ID}}/messages"
+        "url": "=https://graph.facebook.com/v18.0/{{$env.WHATSAPP_PHONE_ID}}/messages",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"messaging_product\": \"whatsapp\",\n  \"to\": \"{{$env.DEV_CHAT_ID}}\",\n  \"type\": \"text\",\n  \"text\": {\n    \"body\": \"Document {{$json.document_id}} escalated. Confidence: {{$json.confidence}}. Review at /api/escalate/ endpoint.\"\n  }\n}"
       },
       "position": [460, 500]
     }
-  ]
+  ],
+  "connections": {
+    "WhatsApp Trigger": {
+      "main": [[{"node": "Extract Media URL", "type": "main", "index": 0}]]
+    },
+    "Extract Media URL": {
+      "main": [[{"node": "Django Process Document", "type": "main", "index": 0}]]
+    },
+    "Django Process Document": {
+      "main": [[{"node": "Check Validation Status", "type": "main", "index": 0}]]
+    },
+    "Check Validation Status": {
+      "main": [
+        [{"node": "Send Success Reply", "type": "main", "index": 0}],
+        [{"node": "Notify Dev Team", "type": "main", "index": 0}]
+      ]
+    },
+    "Error Trigger": {
+      "main": [[{"node": "Notify Dev Team", "type": "main", "index": 0}]]
+    }
+  }
 }

@@ -59,7 +59,7 @@
       "name": "Save State for HITL",
       "type": "n8n-nodes-base.code",
       "parameters": {
-        "jsCode": "const staticData = $getWorkflowStaticData('global');\nstaticData.pendingApproval = {\n  chat_id: $json.chat_id,\n  presentation_url: $json.url,\n  created_at: new Date().toISOString()\n};\nreturn $input.all();"
+        "jsCode": "const chatId = $('Extract User Data').item.json.chat_id;\nconst staticData = $getWorkflowStaticData('global');\nstaticData.pendingApproval = {\n  chat_id: chatId,\n  presentation_url: $json.url,\n  created_at: new Date().toISOString()\n};\nreturn $input.all().map(item => ({ json: { ...item.json, chat_id: chatId } }));"
       },
       "position": [900, 300]
     },
@@ -113,7 +113,7 @@
       "type": "n8n-nodes-base.telegram",
       "parameters": {
         "chatId": "={{$env.DEV_CHAT_ID}}",
-        "text": "=Pipeline error: {{$json.error.message}}"
+        "text": "=Pipeline error: {{$json.execution.error.message}}"
       },
       "position": [460, 500]
     }
